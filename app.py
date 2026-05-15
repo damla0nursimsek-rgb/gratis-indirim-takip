@@ -152,16 +152,17 @@ elif sayfa == "📊 Kategori Analizi":
     st.title("Kategori & Küme Analizi")
     col_l, col_r = st.columns(2)
     with col_l:
+      with col_l:
         st.subheader("Küme × Kategori heatmap")
         pivot = tahmin_df.groupby(["cluster_adi","kategori"])["tahmini_indirim"].mean().unstack(fill_value=0)
-       fig, ax = plt.subplots(figsize=(14, 5))
-sns.heatmap(pivot, annot=True, fmt=".0f", cmap="YlOrRd", linewidths=0.5, ax=ax,
-            cbar_kws={"label":"Tahmini İndirim (%)"},
-            annot_kws={"size": 8})
-ax.set_xlabel(""); ax.set_ylabel("")
-ax.tick_params(axis="x", rotation=45, labelsize=8)
-ax.tick_params(axis="y", rotation=0, labelsize=9)
-plt.tight_layout(); st.pyplot(fig, use_container_width=True); plt.close()
+        fig, ax = plt.subplots(figsize=(14, 5))
+        sns.heatmap(pivot, annot=True, fmt=".0f", cmap="YlOrRd", linewidths=0.5, ax=ax,
+                    cbar_kws={"label":"Tahmini İndirim (%)"},
+                    annot_kws={"size": 8})
+        ax.set_xlabel(""); ax.set_ylabel("")
+        ax.tick_params(axis="x", rotation=45, labelsize=8)
+        ax.tick_params(axis="y", rotation=0, labelsize=9)
+        plt.tight_layout(); st.pyplot(fig, use_container_width=True); plt.close()
     with col_r:
         st.subheader("Top 15 marka — tahmini indirim")
         marka = (tahmin_df.groupby("marka")
