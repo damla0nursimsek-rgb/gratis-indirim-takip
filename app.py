@@ -144,7 +144,7 @@ elif sayfa == "🔍 Ürün Ara":
             if val == "İndirime giriyor": return "background-color:#d4edda;color:#155724"
             elif val == "Takipte tut":    return "background-color:#fff3cd;color:#856404"
             return "background-color:#f8d7da;color:#721c24"
-        st.dataframe(goster.style.applymap(renk, subset=["Durum"]), use_container_width=True, height=500)
+        st.dataframe(goster.style.map(renk, subset=["Durum"]), use_container_width=True, height=500)
     else:
         st.info("Arama kriterlerine uygun ürün bulunamadı.")
 
