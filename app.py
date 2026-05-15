@@ -21,17 +21,17 @@ DATA_DIR = Path("data")
 
 @st.cache_data
 def load_data():
-    df       = pd.read_csv(DATA_DIR/"gratis_clean.csv", encoding="utf-8-sig", parse_dates=["tarih"])
+    ozet     = pd.read_csv(DATA_DIR/"ozet.csv", encoding="utf-8-sig")
     tahmin   = pd.read_csv(DATA_DIR/"gelecek_hafta_indirim_tahmini.csv", encoding="utf-8-sig")
     kume     = pd.read_csv(DATA_DIR/"urun_kumeleri.csv", encoding="utf-8-sig")
     dogruluk = pd.read_csv(DATA_DIR/"dogruluk_analizi.csv", encoding="utf-8-sig")
-    return df, tahmin, kume, dogruluk
+    return ozet, tahmin, kume, dogruluk
 
 @st.cache_resource
 def load_model():
     return joblib.load(DATA_DIR/"rf_model.pkl")
 
-df, tahmin_df, kume_df, dogruluk_df = load_data()
+ozet_df, tahmin_df, kume_df, dogruluk_df = load_data()
 model = load_model()
 
 if "kategori_y" in tahmin_df.columns:
@@ -46,6 +46,9 @@ def indirim_etiketi(val):
 
 tahmin_df["durum"] = tahmin_df["tahmini_indirim"].apply(indirim_etiketi)
 
+son_guncelleme = ozet_df["son_guncelleme"].iloc[0]
+toplam_kayit   = int(ozet_df["toplam_kayit"].iloc[0])
+
 with st.sidebar:
     st.markdown("### 🏷️ Gratis Takip")
     st.markdown("İndirim tahmin sistemi")
@@ -55,7 +58,8 @@ with st.sidebar:
         "📊 Kategori Analizi", "🤖 Model Performansı"
     ], label_visibility="collapsed")
     st.markdown("---")
-    st.markdown(f"**Son güncelleme:** {df['tarih'].max().date()}")
+    st.markdown(f"**Son güncelleme:** {son_guncelleme}")
+    st.markdown(f"**Toplam kayıt:** {toplam_kayit:,}")
     st.markdown(f"**Takip edilen ürün:** {len(tahmin_df):,}")
 
 if sayfa == "🏠 Genel Özet":
