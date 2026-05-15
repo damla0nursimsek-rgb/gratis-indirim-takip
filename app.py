@@ -3,8 +3,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import joblib
 from pathlib import Path
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import LabelEncoder
 
 st.set_page_config(page_title="Gratis İndirim Takip", page_icon="🏷️", layout="wide")
 
@@ -29,10 +30,30 @@ def load_data():
 
 @st.cache_resource
 def load_model():
-    return joblib.load(DATA_DIR/"rf_model.pkl")
+    tahmin = pd.read_csv(DATA_DIR/"gelecek_hafta_indirim_tahmini.csv", encoding="utf-8-sig")
+    dogruluk = pd.read_csv(DATA_DIR/"dogruluk_analizi.csv", encoding="utf-8-sig")
+    if "kategori_y" in tahmin.columns:
+        tahmin["kategori"] = tahmin["kategori_y"].fillna(tahmin.get("kategori_x",""))
+    elif "kategori_x" in tahmin.columns:
+        tahmin["kategori"] = tahmin["kategori_x"]
+    le = LabelEncoder()
+    dogruluk["kategori_enc"] = le.fit_transform(dogruluk["kategori"].fillna("Bilinmiyor")) if "kategori" in dogruluk.columns else 0
+    FEATURE_COLS = [c for c in ["lag_1w_indirim","lag_2w_indirim","lag_3w_indirim",
+                                 "rolling_std_indirim","max_indirim_train","indirimli_gun_orani",
+                                 "kampanyali_gun_orani","gozlem_sayisi","cluster","kategori_enc"]
+                    if c in tahmin.columns]
+    if len(FEATURE_COLS) < 3:
+        return None
+    X = tahmin[FEATURE_COLS].fillna(0)
+    y = tahmin["tahmini_indirim"]
+    model = RandomForestRegressor(n_estimators=50, max_depth=8, random_state=42, n_jobs=-1)
+    model.fit(X, y)
+    return model
 
 ozet_df, tahmin_df, kume_df, dogruluk_df = load_data()
-model = load_model()
+
+with st.spinner("Model yükleniyor..."):
+    model = load_model()
 
 if "kategori_y" in tahmin_df.columns:
     tahmin_df["kategori"] = tahmin_df["kategori_y"].fillna(tahmin_df.get("kategori_x",""))
@@ -45,7 +66,6 @@ def indirim_etiketi(val):
     else:           return "İndirim beklenmiyor"
 
 tahmin_df["durum"] = tahmin_df["tahmini_indirim"].apply(indirim_etiketi)
-
 son_guncelleme = ozet_df["son_guncelleme"].iloc[0]
 toplam_kayit   = int(ozet_df["toplam_kayit"].iloc[0])
 
