@@ -311,19 +311,22 @@ Kampanya bittikten sonra derinlik **%60 → %46** bandına geri çekiliyor ve Ma
 
 ---
 
-## 💡 Temel Çıkarımlar
+💡 Temel Çıkarımlar
+1. Gratis'te "indirim" bir özellik değil, varsayılan durum.
+Gözlemlerin %93'ü indirimde — bu bir kampanya değil, kataloğun kalıcı hali. "İndirimde mi?" sorusu artık anlamsız. Doğru soru: "Bu ürün kendi geçmiş fiyatına göre şu an gerçekten avantajlı mı?"
+2. %50 indirim rakamı rastlantı değil, tasarım.
+28.000 ürün tam olarak %50 indirimle listelenmiş. İndirim oranları yuvarlak değerlerde (%20, %30, %40, %50, %60, %70) keskin tepeler oluşturuyor — aradaki ondalık değerlerde neredeyse hiç gözlem yok. Fiyat, "yarı fiyatına aldım" algısı yaratmak için geriye doğru kurgulanmış.
+3. Gratis aslında iki farklı fiyat politikası uyguluyor.
+Sürekli var olan ~%46'lık baz indirim katmanı ve belirli dönemlerde %60'ı aşan kampanya katmanı. Kampanya dönemlerinde alışveriş yapmak gerçekten yaklaşık %14 ekstra avantaj sağlıyor.
+4. Gerçek fırsat, kataloğun yalnızca %3'ünde.
+10.628 ürünün 8.194'ü "Beklemek Mantıklı" kategorisinde. Sadece 346 ürün gerçek anlamda güçlü fırsat — yani platform genelinde her şey indirimli görünse de gerçekten avantajlı ürün sayısı çok küçük bir azınlık.
+5. Fiyatlar haftalarca değişmiyor.
+Tahmin modelinin en önemli bulgusu: geçen haftanın indirimi, bu haftanın indirimin %72'sini açıklıyor. Model "öğrenmek" yerine "kopyalamak" yapıyor — çünkü kopyalanacak kadar stabil bir yapı var.
+6. Hangi ürün tipini ne zaman almalı?
 
-1. **"İndirimde mi?" yanlış soru.** %93 ürün her zaman indirimde. Doğru soru: *"Bu ürün kendi geçmiş fiyatına göre avantajlı mı?"*
-
-2. **%50 indirim pazarlama kararı.** 28.000 ürünün tam olarak %50 indirimde olması tesadüf değil.
-
-3. **Gratis iki katmanlı strateji uyguluyor:** ~%46 sürekli baz + dönemsel %60+ kampanya dalgaları.
-
-4. **Gerçek fırsatlar küçük grupta:** 10.628 üründen 346'sı güçlü fırsat.
-
-5. **Fiyatlar haftalarca sabit:** Lag_1w dominansı bunu kanıtlıyor.
-
-6. **Kampanya zamanlaması önemli:** Kampanya dönemlerinde ~%14 ekstra indirim.
+Küme 2 (Oynak Fiyatlı): Kampanya dönemlerini bekle, fırsatı kaçırma
+Küme 0 (Sürekli İndirimli): Geçmiş minimum fiyatına bak, anlık değil tarihsel konuma göre karar ver
+Küme 1 (Stabil): Beklemek çok avantaj sağlamaz, ihtiyaç varsa al
 
 ---
 
