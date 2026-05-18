@@ -9,11 +9,15 @@
 
 ## 📌 Proje Motivasyonu
 
-Gratis ürünlerinin **%93'ü her zaman indirimli görünüyor.** Medyan indirim oranı ise **%50.**
+Gratis ürünlerinin **%93'ü her zaman indirimli görünüyor.** Medyan indirim oranı **%50**, ortalama indirim **%50.4.**
 
-Bu durum şu soruyu doğuruyor: *"Bu indirimler gerçek mi, yoksa fiyatlar zaten yüksek belirlenip yapay olarak indirimli mi gösteriliyor?"*
+Bu rakamlar şu soruyu doğuruyor:
 
-Bu proje, Gratis'teki fiyat davranışlarını veriyle inceleyerek tüketicinin gerçekten avantajlı ürünleri ayırt edebilmesi için bir **fırsat skoru sistemi** geliştirmeyi amaçlamaktadır.
+> *"Bu indirimler gerçek mi, yoksa fiyatlar zaten yüksek belirlenip yapay olarak indirimli mi gösteriliyor?"*
+
+Verideki en çarpıcı bulgu: 28.000 ürün tam olarak **%50 indirimle** listelenmiş. İndirim oranları yuvarlak değerlerde (%20, %30, %40, %50, %60, %70) yoğunlaşıyor; aradaki ondalık değerlerde neredeyse hiç gözlem yok. Bu, **fiyatlama kararlarının pazar dinamiklerinden değil, pazarlama stratejisinden** kaynaklandığını düşündürüyor.
+
+Bu proje, Gratis'teki fiyat davranışlarını veriyle analiz ederek tüketicinin gerçekten avantajlı ürünleri ayırt edebilmesi için bir **fırsat skoru sistemi** geliştirmeyi amaçlamaktadır.
 
 ---
 
@@ -24,10 +28,10 @@ gratis-indirim-takip/
 │
 ├── data/
 │   └── processed/
-│       ├── gratis_clean.csv          # Temizlenmiş veri seti
-│       ├── urun_ozellikleri.csv      # Ürün bazlı özellikler
-│       ├── urun_kumeleri.csv         # Kümeleme sonuçları
-│       └── urun_firsat_skorlari.csv  # Fırsat skorları
+│       ├── gratis_clean.csv          # Temizlenmiş ana veri seti
+│       ├── urun_ozellikleri.csv      # Ürün bazlı davranışsal özellikler
+│       ├── urun_kumeleri.csv         # K-Means kümeleme sonuçları
+│       └── urun_firsat_skorlari.csv  # Nihai fırsat skorları
 │
 ├── notebooks/
 │   ├── 01_veri_yukleme_ve_temizlik_son.ipynb
@@ -51,7 +55,7 @@ gratis-indirim-takip/
 | Veri Toplama | Playwright, BeautifulSoup |
 | Veri Depolama | SQLite, Pandas |
 | Analiz | Pandas, NumPy, Matplotlib, Seaborn |
-| Modelleme | Scikit-learn (K-Means, PCA, Random Forest, StandardScaler) |
+| Modelleme | Scikit-learn (K-Means, PCA, StandardScaler, Random Forest) |
 | Uygulama | Streamlit |
 
 ---
@@ -67,150 +71,275 @@ gratis-indirim-takip/
 | Marka sayısı | 422 |
 | Tarih aralığı | 4 Nisan – 6 Mayıs 2026 |
 | Snapshot günü | 15 |
+| Ortalama fiyat | 345 TL |
+| Medyan fiyat | 200 TL |
+| İndirimli gözlem oranı | %93.3 |
+| Ortalama indirim | %50.4 |
 
 ---
 
-## 🗂️ Analiz Aşamaları
+## 🗂️ Notebook'lar ve Analiz Aşamaları
 
-### 1️⃣ Veri Toplama ve Temizlik
+---
 
-Playwright ile Gratis'in 14 kategorisi otomatik olarak tarandı. Her ürün için fiyat, eski fiyat, kampanya etiketi, yorum ve beğeni sayısı tarih damgasıyla SQLite'a kaydedildi.
+### 📓 Notebook 01 — Veri Yükleme ve Temizlik
 
-**Temizlik adımları:**
-- Tarih alanları `datetime` formatına dönüştürüldü
-- `begeni` sütunu `"2B"`, `"13B"` gibi metin formatlarından sayısal değere çevrildi
-- `eski_fiyat` ve `indirim_yuzde` boşlukları "indirim yok" olarak işaretlendi
-- Aynı ürünün aynı gündeki birden fazla kaydından en güncel olanı tutuldu (47K satır azaltıldı)
-- En az 5 farklı günde gözlemlenen ürünler filtrelendi
+**Amaç:** Ham SQLite verisini analiz ve modelleme için hazır hale getirmek.
 
-**İndirim hesaplama formülü:**
+**Ham verinin yapısı:**
+- Kaynak: `gratis.db` SQLite veritabanı (`fiyat_gecmisi` tablosu)
+- 168.356 kayıt, 14 sütun
+- Sütunlar: `urun_id`, `isim`, `marka`, `kategori`, `fiyat`, `eski_fiyat`, `indirim_yuzde`, `kampanya`, `yorum_sayisi`, `begeni`, `url`, `tarih`, `kayit_zamani`
+
+**Eksik değer profili:**
+
+| Sütun | Eksik Sayı | Yorum |
+|-------|-----------|-------|
+| `eski_fiyat` | 17.494 | İndirim yok anlamına geliyor |
+| `indirim_yuzde` | 17.494 | İndirim yok anlamına geliyor |
+| `kampanya` | 129.321 | Kampanya etiketi taşımıyor |
+| `begeni` | 201 | Beğeni bilgisi eksik |
+
+**Yapılan temizlik adımları:**
+
+1. **Tarih dönüşümleri:** `tarih` ve `kayit_zamani` sütunları `datetime` formatına çevrildi. `snapshot_gun` (gün hassasiyetinde tarih) türetildi.
+2. **Beğeni sayısallaştırma:** `"2B"`, `"13B"` gibi metin formatları sayısal değere (`begeni_sayi`) dönüştürüldü.
+3. **Eksik değer stratejisi:**
+   - `eski_fiyat` ve `indirim_yuzde` boşları → "indirim yok" anlamında 0/güncel fiyatla dolduruldu
+   - `kampanya` boşları → `"Kampanya Yok"` etiketi atandı
+4. **Boolean flag:** `indirimde_mi` sütunu türetildi.
+5. **Gün bazına indirgeme:** Aynı ürün-aynı günün birden fazla snapshot'ı varsa en güncel kayıt tutuldu → **47.074 satır çıkarıldı**
+6. **Minimum gözlem filtresi:** En az **5 farklı günde** gözlemlenen ürünler analiz kapsamına alındı → 1.051 ürün (%9) çıkarıldı
+7. **Marka adı düzeltmeleri:** Scraper marka adını ürün adının ilk kelimesinden türettiği için çok kelimeli marka adları manuel olarak düzeltildi (örn: `Bee` → `Bee Beauty`, `Golden` → `Golden Rose`)
+
+**İndirim formülü:**
+```python
+indirim_orani = (1 - fiyat / eski_fiyat) * 100
 ```
-İndirim Oranı = (1 - fiyat / eski_fiyat) × 100
+> Sitenin kendi indirim değeri yerine, tüm ürünlerde tutarlı karşılaştırma sağlamak için yeniden hesaplandı.
+
+**Final veri seti:**
+- Temiz gözlem: **118.812**
+- Benzersiz ürün: **10.628**
+- Mükerrer ürün-gün kaydı: **0**
+- Ürün başına ortalama gözlem: **11.2 gün**
+
+---
+
+### 📓 Notebook 02 — Keşifsel Veri Analizi (EDA)
+
+**Amaç:** Modellemeye geçmeden önce verinin yapısını, dağılımlarını ve gizli örüntüleri anlamak.
+
+**İncelenen 8 soru:**
+1. Genel manzara: kategori ve marka dağılımı
+2. Fiyat yapısı: dağılım ve uç değerler
+3. İndirim manzarası: derinlik ve sıklık
+4. Kategori karşılaştırması: indirim agresifliği
+5. Marka davranışı: fiyat konumlanması
+6. Zaman dinamiği: indirim oranları nasıl değişiyor?
+7. Popülerlik-fiyat ilişkisi
+8. Kampanya analizi
+
+#### Kategori Dağılımı
+- **Makyaj** en büyük kategori: 3.666 ürün (katalogunun ~%34'ü)
+- İlk 3 kategori (Makyaj + Cilt Bakım + Saç Bakım) katalogunun **%62'sini** oluşturuyor
+- En küçük: Elektrikli Ürünler (53 ürün)
+
+#### Fiyat Yapısı
 ```
-> Sitenin kendi indirim değeri yerine tutarlı karşılaştırma sağlamak için yeniden hesaplandı.
+Ortalama:  345 TL   (medyandan 1.7x yüksek)
+Medyan:    200 TL
+%25:       115 TL
+%75:       341 TL
+%99:     3.396 TL
+Max:    22.929 TL   (lüks parfüm seti)
+Çarpıklık: 10.90    (aşırı sağa çarpık)
+```
+
+**Kategori bazında fiyat segmentleri:**
+
+| Segment | Kategoriler | Medyan Fiyat |
+|---------|------------|--------------|
+| Premium | Elektrikli Ürünler | 1.099 TL |
+| Üst Orta | Güneş Ürünleri, Parfüm | 250–415 TL |
+| Orta | Makyaj, Cilt Bakım | 210–225 TL |
+| Ekonomik | Süpermarket, Kişisel Bakım | 59–148 TL |
+
+> **Modelleme notu:** Sağa çarpık dağılım nedeniyle fiyat değişkenleri log dönüşümüyle kullanıldı.
+
+#### İndirim Manzarası
+```
+Ortalama indirim:  %50.4
+Medyan indirim:    %50.0
+Std sapma:         %13.9
+%25:               %40.1
+%75:               %60.0
+Max:               %88.8
+```
+
+**Kritik bulgular:**
+- **%50'de devasa tepe:** ~28.000 gözlem tam olarak %50 indirimle listelenmiş
+- **Yuvarlak değerlerde yığılma:** %20, %30, %40, %50, %60, %70'te sivri tepeler — aralarında neredeyse hiç gözlem yok
+- **%40-60 bandında %63 yoğunlaşma:** Gratis'in "iyi indirim" olarak konumlandırdığı aralık
+- **%80+ indirim yok denecek kadar az:** Sadece 173 gözlem
+
+#### Kategori Bazında İndirim Agresifliği
+
+| Kategori | İndirimli Oran | Ortalama İndirim |
+|----------|---------------|-----------------|
+| Elektrikli Ürünler | %100 | %58.0 |
+| Makyaj | %90 | %56.5 |
+| Güneş Ürünleri | %98 | %53.8 |
+| Cilt Bakım | %98 | %53.2 |
+| Saç Bakım | %97 | %49.3 |
+| Süpermarket | %66 | %37.8 |
+
+> 14 kategoriden **12'sinin indirimli oranı %90'ın üzerinde.** Süpermarket tek gerçekten farklı davranan kategori.
+
+#### Zaman Dinamiği
+
+İki belirgin kampanya zirvesi tespit edildi:
+- **4 Nisan 2026 (%100 indirimli oran, %60 derinlik):** "1-10 Nisan Makyaj + Saç Bakım Bahar Kampanyası" ile örtüşüyor
+- **17 Nisan 2026 (%60 derinlik):** Bahar kampanyasının ikinci dalgası
+
+Kampanya bittikten sonra derinlik **%60 → %46** bandına geri çekiliyor ve Mayıs başında bu seviyede stabil kalıyor.
+
+**Veri boşluğu:** 21-26 Nisan tarihleri arasında veri toplanamadı — bu dönem "DEV FIRSAT" kampanyasıyla örtüşüyor.
+
+**Gratis'in iki katmanlı fiyat stratejisi:**
+- **Baz katman (her zaman):** ~%46 ortalama indirim
+- **Kampanya katmanı (dönemsel):** %60+ derinlik
+
+#### Popülerlik-İndirim İlişkisi
+- Pearson korelasyon: **0.139** — Güçlü bir doğrusal ilişki yok
 
 ---
 
-### 2️⃣ Keşifsel Veri Analizi (EDA)
+### 📓 Notebook 03 — Özellik Mühendisliği ve K-Means Kümeleme
 
-**Temel bulgular:**
+**Amaç:** Her ürün için davranışsal özellikler üretmek ve ürünleri benzer profillere göre kümelemek.
 
-- Gözlemlerin **%93'ü indirimde** — indirim bir promosyon değil, kalıcı varsayılan hal
-- İndirimler %40-60 bandında yoğunlaşıyor; **%50'de aşırı tepe** (28.000 gözlem)
-- Yuvarlak indirim oranları (20%, 30%, 40%, 50%...) baskın → **psikolojik fiyatlama kanıtı**
-- Gratis iki katmanlı strateji uyguluyor:
-  - **Baz katman:** ~%46 sürekli indirim
-  - **Kampanya katmanı:** %60+ dönemsel indirim (Nisan kampanyaları ile doğrulandı)
+#### 12 Davranışsal Değişken
+
+| Grup | Değişken | Açıklama |
+|------|---------|---------|
+| Fiyat | `log_ortalama_fiyat` | Log dönüşümlü ortalama fiyat |
+| Fiyat | `fiyat_araligi_orani` | (max-min)/ortalama |
+| Fiyat | `fiyat_degisim_orani` | Kaç günde fiyat değişti? |
+| Fiyat | `fiyat_std` | Fiyat standart sapması |
+| İndirim | `ortalama_indirim` | Gözlem dönemi ortalaması |
+| İndirim | `max_indirim` | En yüksek ulaşılan indirim |
+| İndirim | `indirim_std` | İndirim tutarlılığı |
+| İndirim | `indirimli_gun_orani` | Kaç günde indirimde? |
+| Kampanya | `kampanyali_gun_orani` | Kaç günde kampanya etiketli? |
+| Kampanya | `farkli_kampanya_sayisi` | Kaç farklı kampanyaya girdi? |
+| Popülerlik | `populerlik_skoru` | Yorum + beğeni kompozit skor |
+| Kapsam | `gozlem_sayisi` | Kaç günde gözlemlendi? |
+
+**Ön işlem:** %1-%99 kırpma + `StandardScaler` standardizasyonu
+
+#### Küme Sayısı Belirleme
+
+**Silhouette skorları:**
+
+| k | Silhouette |
+|---|-----------|
+| 2 | 0.46 (en yüksek) |
+| 3 | **0.43** (seçilen) |
+| 4 | 0.18 ← sert düşüş |
+
+**k=3 seçimi:** k=2 matematiksel optimal ama tüketici için yorum gücü sınırlı. k=4'te Silhouette çöküyor. k=3 hem güçlü skor hem de 3 yorumlanabilir profil sunuyor.
+
+#### 3 Ürün Profili
+
+| Küme | Ad | Ürün Sayısı | İndirimli Gün | Ort. İndirim | Kampanya |
+|------|---|------------|--------------|-------------|---------|
+| 0 | Sürekli İndirimli Ana Katalog | 9.020 (%85) | %100 | ~%50 | %27 |
+| 1 | Stabil ve Düşük Kampanyalı | 655 (%6) | %82 | ~%30 | ~%0 |
+| 2 | Oynak Fiyatlı, Dönemsel Fırsat | 953 (%9) | %38 | düşük ort, yüksek max | %23 |
+
+**PCA:** PC1 %26.6 + PC2 %24.3 = %50.9 toplam varyans açıklanıyor.
 
 ---
 
-### 3️⃣ Özellik Mühendisliği ve K-Means Kümeleme
+### 📓 Notebook 04 — Fırsat Skoru ve Sonuçlar
 
-Her ürün için **12 davranışsal değişken** türetildi:
+**Amaç:** Her ürüne tüketici perspektifinden 0-100 arası bir fırsat skoru atamak.
 
-| Grup | Değişkenler |
-|------|------------|
-| Fiyat davranışı | `log_ortalama_fiyat`, `fiyat_araligi_orani`, `fiyat_degisim_orani`, `fiyat_std` |
-| İndirim davranışı | `ortalama_indirim`, `max_indirim`, `indirim_std`, `indirimli_gun_orani` |
-| Kampanya davranışı | `kampanyali_gun_orani`, `farkli_kampanya_sayisi` |
-| Popülerlik & Kapsam | `populerlik_skoru`, `gozlem_sayisi` |
+#### Fırsat Skoru Bileşenleri
 
-**Küme sayısı seçimi:**
-
-Elbow ve Silhouette yöntemleri birlikte kullanıldı. k=2'de Silhouette skoru 0.46 ile en yüksek, ancak yalnızca iki profil tüketici için yeterince bilgilendirici değil. k=4'te Silhouette 0.18'e düşüyor. **k=3** hem matematiksel hem yorumlanabilirlik açısından optimal seçildi.
-
-**3 Ürün Profili:**
-
-| Küme | Profil | Ürün Sayısı | Temel Özellikler |
-|------|--------|-------------|-----------------|
-| 0 | Sürekli İndirimli Ana Katalog | 9.020 (%85) | İndirimli gün oranı %100, ortalama indirim %50 |
-| 1 | Stabil ve Düşük Kampanyalı | 655 (%6) | Kampanyasız, fiyat hareketi sınırlı |
-| 2 | Oynak Fiyatlı, Dönemsel Fırsat | 953 (%9) | Max indirim yüksek, indirimde gün oranı %38 |
-
----
-
-### 4️⃣ Kural Tabanlı Fırsat Skorlaması
-
-Her ürüne **0-100** arasında bir fırsat skoru atandı:
-
-| Bileşen | Ağırlık | Açıklama |
-|---------|---------|----------|
+| Bileşen | Ağırlık | Hesaplama |
+|---------|---------|---------|
 | Geçmiş fiyata göre avantaj | **%45** | Güncel fiyat geçmiş minimuma ne kadar yakın? |
-| İndirim derinliği | **%30** | Güncel indirim oranı ne kadar yüksek? |
-| Küme davranışı | **%15** | Ürünün profili fırsat potansiyeli taşıyor mu? |
-| Kampanya bonusu | **%10** | Ürün aktif kampanyada mı? |
+| İndirim derinliği | **%30** | `guncel_indirim / 70 * 100` (max %70'te doyuyor) |
+| Küme davranışı | **%15** | Küme 2: 85, Küme 0: 70, Küme 1: 40 |
+| Kampanya bonusu | **%10** | Kampanya varsa: 100, yoksa: 0 |
 
-**Fırsat sınıfları:**
+#### Fırsat Sınıfları
 
 | Skor | Sınıf | Ürün Sayısı |
 |------|-------|-------------|
-| 80–100 | Çok Güçlü Fırsat | 346 |
-| 60–79 | İyi Fırsat | 814 |
-| 40–59 | Orta Seviye | 1.274 |
-| 0–39 | Beklemek Mantıklı | 8.194 |
+| 80–100 | Çok Güçlü Fırsat | **346** |
+| 60–79 | İyi Fırsat | **814** |
+| 40–59 | Orta Seviye | **1.274** |
+| 0–39 | Beklemek Mantıklı | **8.194** |
 
-> 10.628 üründen yalnızca **346'sı** gerçek anlamda güçlü fırsat olarak belirlendi.
+> 10.628 üründen yalnızca **%3.3'ü** gerçek anlamda güçlü fırsat.
 
 ---
 
-### 5️⃣ Deneysel Tahmin Modeli (Random Forest)
+### 📓 Notebook 05 — Deneysel Tahmin Modeli
 
-Gelecek haftanın indirim oranını tahmin etmek için Random Forest Regressor kullanıldı.
+**Amaç:** Gelecek haftanın indirim oranını tahmin etmek — ve fiyat dinamiklerini anlamak.
 
-**Özellik önemi sonuçları:**
+**Train/Validation:** Nisan (3 hafta) → Mayıs (1 hafta), zamana göre bölünme.
 
-| Değişken | Gini Önem Skoru |
-|----------|----------------|
-| lag_1w_indirim (1 hafta önceki indirim) | **0.72** |
-| lag_3w_indirim | 0.14 |
-| rolling_std_indirim | 0.06 |
-| Diğer tüm değişkenler | < 0.03 |
+**Özellik önemi (Random Forest Gini):**
 
-**Kritik bulgu:** Geçen haftanın indirimi tahminlerin %72'sini açıklıyor. Bu, Gratis'te fiyatların haftalarca sabit kaldığını gösteriyor — bu modelin bir başarısı değil, verinin yapısını ortaya koyan önemli bir bulgudur.
+| Değişken | Önem |
+|---------|------|
+| `lag_1w_indirim` | **0.72** |
+| `lag_3w_indirim` | 0.14 |
+| `rolling_std_indirim` | 0.06 |
+| Diğerleri | < 0.03 |
 
-**Model performansı (validation seti):**
+**Model performansı:**
 - Ortalama hata: **0.01** (tarafsız)
-- Standart sapma: **4.55**
+- Std: **4.55**
 
-> Bu model üretim amaçlı değil, fiyat dinamiklerini anlamak için kullanılmıştır.
+**Kritik bulgu:** `lag_1w` tahminlerin %72'sini açıklıyor → Gratis'te fiyatlar haftalarca sabit kalıyor. Model "öğrenmek" yerine "geçen haftayı kopyalamak" yapıyor.
+
+---
+
+## 💡 Temel Çıkarımlar
+
+1. **"İndirimde mi?" yanlış soru.** %93 ürün her zaman indirimde. Doğru soru: *"Bu ürün kendi geçmiş fiyatına göre avantajlı mı?"*
+
+2. **%50 indirim pazarlama kararı.** 28.000 ürünün tam olarak %50 indirimde olması tesadüf değil.
+
+3. **Gratis iki katmanlı strateji uyguluyor:** ~%46 sürekli baz + dönemsel %60+ kampanya dalgaları.
+
+4. **Gerçek fırsatlar küçük grupta:** 10.628 üründen 346'sı güçlü fırsat.
+
+5. **Fiyatlar haftalarca sabit:** Lag_1w dominansı bunu kanıtlıyor.
+
+6. **Kampanya zamanlaması önemli:** Kampanya dönemlerinde ~%14 ekstra indirim.
 
 ---
 
 ## 🚀 Kurulum ve Çalıştırma
 
 ```bash
-# Bağımlılıkları yükle
 pip install -r requirements.txt
-
-# Playwright browser'ı yükle
 playwright install chromium
 
-# Scraper'ı çalıştır (veri toplama)
+# Veri toplamak için
 python gratis.py
 
-# Streamlit uygulamasını başlat
+# Dashboard için
 streamlit run app.py
 ```
 
 ---
 
-## 💡 Temel Çıkarımlar
 
-1. **"İndirimde mi?" sorusu yanlış soru.** Gratis'te ürünlerin %93'ü her zaman indirimde. Doğru soru: *"Bu ürün kendi geçmiş fiyatına göre şu an avantajlı mı?"*
-
-2. **%50 indirim bir pazarlama kararı.** 28.000 ürünün tam olarak %50 indirimde olması tesadüf değil — fiyat geriye doğru kurgulanmış.
-
-3. **Gerçek fırsatlar küçük bir grupta.** 10.628 üründen yalnızca 346'sı güçlü fırsat kategorisinde.
-
-4. **Kampanya zamanlaması önemli.** Kampanya dönemlerinde indirim derinliği ~%14 artıyor.
-
-5. **Fiyatlar haftalarca sabit kalıyor.** Tahmin modelinin bulgusu: geçen haftanın indirimi bu haftanın indirimin %72'sini açıklıyor.
-
----
-
-## ⚠️ Kısıtlar ve Notlar
-
-- 21-26 Nisan tarihleri arasında veri toplanamadı (DEV FIRSAT kampanya dönemi)
-- Deneysel tahmin modeli üretim için değil, fiyat dinamiklerini anlamak amacıyla geliştirildi
-- Scraper, Gratis'in HTML yapısına bağımlıdır; site güncellemelerinde bakım gerektirebilir
-- Veri 15 günlük snapshot'tan oluşmaktadır; daha uzun dönem verisiyle model güçlenebilir
