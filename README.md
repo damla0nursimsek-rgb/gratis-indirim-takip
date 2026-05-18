@@ -7,7 +7,7 @@
 
 ---
 
-## 📌 Proje Motivasyonu
+## 📌 Problem Tanımı
 
 Gratis ürünlerinin **%93'ü her zaman indirimli görünüyor.** Medyan indirim oranı **%50**, ortalama indirim **%50.4.**
 
@@ -311,7 +311,7 @@ Kampanya bittikten sonra derinlik **%60 → %46** bandına geri çekiliyor ve Ma
 
 ---
 
-💡 Temel Çıkarımlar
+## 💡 Temel Çıkarımlar
 1. Gratis'te "indirim" bir özellik değil, varsayılan durum.
 Gözlemlerin %93'ü indirimde — bu bir kampanya değil, kataloğun kalıcı hali. "İndirimde mi?" sorusu artık anlamsız. Doğru soru: "Bu ürün kendi geçmiş fiyatına göre şu an gerçekten avantajlı mı?"
 2. %50 indirim rakamı rastlantı değil, tasarım.
